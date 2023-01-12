@@ -688,7 +688,7 @@ class Overcooked(gym.Env):
         dummy_state = dummy_mdp.get_standard_start_state()
         # TODO: currently only the lossless state encoding works (multiple binary maps)
         obs_shape = self.featurize_fn(dummy_state).shape
-        return gym.spaces.MultiBinary(obs_shape)
+        return gym.spaces.Box(low=0, high=1, shape=obs_shape, dtype=np.uint8)
 
     def step(self, action):
         """
@@ -703,8 +703,7 @@ class Overcooked(gym.Env):
             action,
             type(action),
         )
-        agent0_action, agent1_action = [Action.INDEX_TO_ACTION[a] for a in action]
-        joint_action = (agent0_action, agent1_action)
+        joint_action = [Action.INDEX_TO_ACTION[a] for a in action]
 
         next_state, reward, done, env_info = self.base_env.step(joint_action)
         observation = self.featurize_fn(next_state)
@@ -733,9 +732,7 @@ class Overcooked(gym.Env):
         self.base_env.reset()
         self.mdp = self.base_env.mdp
         self.agent_idx = 0
-        # ob_p0, ob_p1 = self.featurize_fn(self.base_env.state)
         observation = self.featurize_fn(self.base_env.state)
-
         return observation
 
     def render(self, mode="human", close=False):

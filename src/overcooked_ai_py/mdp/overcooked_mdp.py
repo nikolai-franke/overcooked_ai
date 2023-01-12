@@ -2416,7 +2416,7 @@ class OvercookedGridworld(object):
         all_objects = overcooked_state.all_objects_list
 
         def make_layer(position, value):
-            layer = np.zeros(self.shape)
+            layer = np.zeros(self.shape, dtype=np.uint8)
             layer[position] = value
             return layer
 
@@ -2443,11 +2443,11 @@ class OvercookedGridworld(object):
                 + variable_map_features
                 + urgency_features
             )
-            state_mask_dict = {k: np.zeros(self.shape) for k in LAYERS}
+            state_mask_dict = {k: np.zeros(self.shape, dtype=np.uint8) for k in LAYERS}
 
             # MAP LAYERS
             if horizon - overcooked_state.timestep < 40:
-                state_mask_dict["urgency"] = np.ones(self.shape)
+                state_mask_dict["urgency"] = np.ones(self.shape, dtype=np.uint8)
 
             for loc in self.get_counter_locations():
                 state_mask_dict["counter_loc"][loc] = 1
@@ -2554,7 +2554,7 @@ class OvercookedGridworld(object):
             assert state_mask_stack.shape[:2] == self.shape
             assert state_mask_stack.shape[2] == len(LAYERS)
             # NOTE: currently not including time left or order_list in featurization
-            return np.array(state_mask_stack).astype(int)
+            return np.array(state_mask_stack)
 
         # NOTE: Currently not very efficient, a decent amount of computation repeated here
         num_players = len(overcooked_state.players)
