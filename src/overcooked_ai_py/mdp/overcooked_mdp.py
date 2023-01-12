@@ -2558,10 +2558,8 @@ class OvercookedGridworld(object):
 
         # NOTE: Currently not very efficient, a decent amount of computation repeated here
         num_players = len(overcooked_state.players)
-        final_obs_for_players = tuple(
-            process_for_player(i) for i in range(num_players)
-        )
-        return final_obs_for_players
+        final_obs = process_for_player(0)
+        return final_obs
 
     @property
     def featurize_state_shape(self):
