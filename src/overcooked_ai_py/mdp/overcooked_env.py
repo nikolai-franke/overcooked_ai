@@ -707,6 +707,7 @@ class Overcooked(gym.Env):
 
         next_state, reward, done, env_info = self.base_env.step(joint_action)
         observation = self.featurize_fn(next_state)
+        print(env_info)
 
         # if self.agent_idx == 0:
         #     both_agents_ob = (ob_p0, ob_p1)
@@ -734,6 +735,12 @@ class Overcooked(gym.Env):
         self.agent_idx = 0
         observation = self.featurize_fn(self.base_env.state)
         return observation
+
+    def test(self, model, num_games, info=True):
+        trajectories = {k: [] for k in DEFAULT_TRAJ_KEYS}
+        range_iterator = (
+            tqdm.trange(num_games, desc="", leave=True) if info else range(num_games)
+        )
 
     def render(self, mode="human", close=False):
         pass

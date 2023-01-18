@@ -2550,9 +2550,9 @@ class OvercookedGridworld(object):
             state_mask_stack = np.array(
                 [state_mask_dict[layer_id] for layer_id in LAYERS]
             )
-            state_mask_stack = np.transpose(state_mask_stack, (1, 2, 0))
-            assert state_mask_stack.shape[:2] == self.shape
-            assert state_mask_stack.shape[2] == len(LAYERS)
+            # state_mask_stack = np.transpose(state_mask_stack, (1, 2, 0))
+            assert state_mask_stack.shape[1:] == self.shape
+            assert state_mask_stack.shape[0] == len(LAYERS)
             # NOTE: currently not including time left or order_list in featurization
             return np.array(state_mask_stack)
 
