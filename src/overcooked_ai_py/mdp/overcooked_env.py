@@ -2,6 +2,7 @@ import time
 
 import gym
 import numpy as np
+import torch
 import tqdm
 
 from overcooked_ai_py.mdp.actions import Action
@@ -14,6 +15,7 @@ from overcooked_ai_py.planning.planners import (NO_COUNTERS_PARAMS,
                                                 MediumLevelActionManager,
                                                 MotionPlanner)
 from overcooked_ai_py.utils import append_dictionaries, mean_and_std_err
+from overcooked_ai_py.visualization.state_visualizer import StateVisualizer
 
 DEFAULT_ENV_PARAMS = {"horizon": 400}
 
@@ -681,6 +683,7 @@ class Overcooked(gym.Env):
         self.action_space = gym.spaces.MultiDiscrete(
             [len(Action.ALL_ACTIONS), len(Action.ALL_ACTIONS)]
         )
+        self.state_visualizer = StateVisualizer()
         self.reset()
 
     def _setup_observation_space(self):
@@ -707,7 +710,6 @@ class Overcooked(gym.Env):
 
         next_state, reward, done, env_info = self.base_env.step(joint_action)
         observation = self.featurize_fn(next_state)
-        print(env_info)
 
         # if self.agent_idx == 0:
         #     both_agents_ob = (ob_p0, ob_p1)
@@ -736,11 +738,70 @@ class Overcooked(gym.Env):
         observation = self.featurize_fn(self.base_env.state)
         return observation
 
-    def test(self, model, num_games, info=True):
+    def rollout(self, model, num_games=1, info=True):
+        obs = self.reset()
         trajectories = {k: [] for k in DEFAULT_TRAJ_KEYS}
         range_iterator = (
             tqdm.trange(num_games, desc="", leave=True) if info else range(num_games)
         )
+        for _ in range_iterator:
+            trajectory = []
+            done = False
+
+            while not done:
+                current_state = self.base_env.state
+                obs = self.featurize_fn(current_state)
+                with torch.no_grad():
+                    action, *_ = model.predict(obs)
+                assert self.action_space.contains(action)
+                joint_action = tuple([Action.INDEX_TO_ACTION[a] for a in action])
+                next_state, reward, done, env_info = self.base_env.step(joint_action)
+                trajectory.append((current_state, joint_action, reward, done, env_info))
+
+            assert len(trajectory) == self.base_env.state.timestep, "{} vs {}".format(
+                len(trajectory), self.base_env.state.timestep
+            )
+            trajectory.append((next_state, (None, None), 0, True, None))  # type: ignore
+            total_sparse = sum(
+                self.base_env.game_stats["cumulative_sparse_rewards_by_agent"]
+            )
+            total_shaped = sum(
+                self.base_env.game_stats["cumulative_shaped_rewards_by_agent"]
+            )
+            total_time = self.base_env.state.timestep
+            trajectory = np.array(trajectory, dtype=object)
+
+            obs, actions, rews, dones, infos = (
+                trajectory.T[0],
+                trajectory.T[1],
+                trajectory.T[2],
+                trajectory.T[3],
+                trajectory.T[4],
+            )
+            trajectories["ep_states"].append(obs)
+            trajectories["ep_actions"].append(actions)
+            trajectories["ep_rewards"].append(rews)
+            trajectories["ep_dones"].append(dones)
+            trajectories["ep_infos"].append(infos)
+            trajectories["ep_returns"].append(total_sparse)
+            trajectories["ep_lengths"].append(total_time)
+            trajectories["mdp_params"].append(self.base_env.mdp.mdp_params)
+            trajectories["env_params"].append(self.base_env.env_params)
+            self.reset()
+
+        trajectories = {k: np.array(v) for k, v in trajectories.items()}
+
+        from overcooked_ai_py.agents.benchmarking import AgentEvaluator
+
+        AgentEvaluator.check_trajectories(trajectories, verbose=True)
+
+        return trajectories
+
+        # TODO: implement saving trajectories
 
     def render(self, mode="human", close=False):
-        pass
+        surface = self.state_visualizer.render_state(
+            self.base_env.state, grid=self.base_env.mdp.terrain_mtx
+        )
+        img = pygame.surfarray.array3d(surface)
+        return surface
