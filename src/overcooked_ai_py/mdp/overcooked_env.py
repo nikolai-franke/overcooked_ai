@@ -259,8 +259,11 @@ class OvercookedEnv(object):
         if done:
             self._add_episode_info(env_info)
 
-        timestep_sparse_reward = sum(mdp_infos["sparse_reward_by_agent"])
-        return (next_state, timestep_sparse_reward, done, env_info)
+        reward = sum(mdp_infos["sparse_reward_by_agent"]) + sum(
+            mdp_infos["shaped_reward_by_agent"]
+        )
+
+        return (next_state, reward, done, env_info)
 
     def lossless_state_encoding_mdp(self, state):
         """
@@ -299,7 +302,9 @@ class OvercookedEnv(object):
         }
         rewards_dict = {
             "cumulative_sparse_rewards_by_agent": np.array([0] * self.mdp.num_players),
-            "cumulative_shaped_rewards_by_agent": np.array([0] * self.mdp.num_players),
+            "cumulative_shaped_rewards_by_agent": np.array(
+                [0.0] * self.mdp.num_players
+            ),
         }
         self.game_stats = {**events_dict, **rewards_dict}
 
@@ -570,65 +575,6 @@ class OvercookedEnv(object):
         discounted_rews = np.sum(rewards_matrix * discount_array, axis=1)
         return discounted_rews
 
-    @staticmethod
-    def get_agent_infos_for_trajectories(trajectories, agent_idx):
-        """
-        Returns a dictionary of the form
-        {
-            "[agent_info_0]": [ [episode_values], [], ... ],
-            "[agent_info_1]": [ [], [], ... ],
-            ...
-        }
-        with as keys the keys returned by the agent in it's agent_info dictionary
-
-        NOTE: deprecated
-        """
-        agent_infos = []
-        for traj_idx in range(len(trajectories["ep_lengths"])):
-            ep_infos = trajectories["ep_infos"][traj_idx]
-            traj_agent_infos = [
-                step_info["agent_infos"][agent_idx] for step_info in ep_infos
-            ]
-
-            # Append all dictionaries together
-            traj_agent_infos = append_dictionaries(traj_agent_infos)
-            agent_infos.append(traj_agent_infos)
-
-        # Append all dictionaries together once again
-        agent_infos = append_dictionaries(agent_infos)
-        agent_infos = {k: np.array(v) for k, v in agent_infos.items()}
-        return agent_infos
-
-    @staticmethod
-    def proportion_stuck_time(trajectories, agent_idx, stuck_time=3):
-        """
-        Simple util for calculating a guess for the proportion of time in the trajectories
-        during which the agent with the desired agent index was stuck.
-
-        NOTE: deprecated
-        """
-        stuck_matrix = []
-        for traj_idx in range(len(trajectories["ep_lengths"])):
-            stuck_matrix.append([])
-            obs = trajectories["ep_states"][traj_idx]
-            for traj_timestep in range(
-                stuck_time, trajectories["ep_lengths"][traj_idx]
-            ):
-                if traj_timestep >= stuck_time:
-                    recent_states = obs[traj_timestep - stuck_time : traj_timestep + 1]
-                    recent_player_pos_and_or = [
-                        s.players[agent_idx].pos_and_or for s in recent_states
-                    ]
-
-                    if len({item for item in recent_player_pos_and_or}) == 1:
-                        # If there is only one item in the last stuck_time steps, then we classify the agent as stuck
-                        stuck_matrix[traj_idx].append(True)
-                    else:
-                        stuck_matrix[traj_idx].append(False)
-                else:
-                    stuck_matrix[traj_idx].append(False)
-        return stuck_matrix
-
 
 class Overcooked(gym.Env):
     """
@@ -800,8 +746,4 @@ class Overcooked(gym.Env):
         # TODO: implement saving trajectories
 
     def render(self, mode="human", close=False):
-        surface = self.state_visualizer.render_state(
-            self.base_env.state, grid=self.base_env.mdp.terrain_mtx
-        )
-        img = pygame.surfarray.array3d(surface)
-        return surface
+        pass
