@@ -187,7 +187,7 @@ class StateVisualizer:
         os.makedirs(img_directory_path, exist_ok=True)
         img_pathes = []
         for i, state in enumerate(states):
-            img_name = img_prefix + str(i) + img_extension
+            img_name = img_prefix + str(i).zfill(3) + img_extension
             img_path = os.path.join(img_directory_path, img_name)
             img_pathes.append(
                 self.display_rendered_state(
