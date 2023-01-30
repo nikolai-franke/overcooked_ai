@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import tqdm
 
+import wandb
 from overcooked_ai_py.mdp.actions import Action
 from overcooked_ai_py.mdp.overcooked_mdp import (EVENT_TYPES,
                                                  OvercookedGridworld)
@@ -249,15 +250,15 @@ class OvercookedEnv(object):
         )
 
         # Update game_stats
-        self._update_game_stats(mdp_infos)
+        # self._update_game_stats(mdp_infos)
 
         # Update state and done
         self.state = next_state
         done = self.is_done()
         env_info = self._prepare_info_dict(joint_agent_action_info, mdp_infos)
 
-        if done:
-            self._add_episode_info(env_info)
+        # if done:
+        #     self._add_episode_info(env_info)
 
         reward = sum(mdp_infos["sparse_reward_by_agent"]) + sum(
             mdp_infos["shaped_reward_by_agent"]
@@ -301,10 +302,13 @@ class OvercookedEnv(object):
             k: [[] for _ in range(self.mdp.num_players)] for k in EVENT_TYPES
         }
         rewards_dict = {
-            "cumulative_sparse_rewards_by_agent": np.array([0] * self.mdp.num_players),
+            "cumulative_sparse_rewards_by_agent": np.array(
+                [0.0] * self.mdp.num_players
+            ),
             "cumulative_shaped_rewards_by_agent": np.array(
                 [0.0] * self.mdp.num_players
             ),
+            "cumulative_useless_actions_by_agent": np.array([0] * self.mdp.num_players),
         }
         self.game_stats = {**events_dict, **rewards_dict}
 
@@ -344,41 +348,14 @@ class OvercookedEnv(object):
         env_info["phi_s_prime"] = (
             mdp_infos["phi_s_prime"] if "phi_s_prime" in mdp_infos else None
         )
-        return env_info
-
-    def _add_episode_info(self, env_info):
-        env_info["episode"] = {
-            "ep_game_stats": self.game_stats,
-            "ep_sparse_r": sum(self.game_stats["cumulative_sparse_rewards_by_agent"]),
-            "ep_shaped_r": sum(self.game_stats["cumulative_shaped_rewards_by_agent"]),
-            "ep_sparse_r_by_agent": self.game_stats[
-                "cumulative_sparse_rewards_by_agent"
-            ],
-            "ep_shaped_r_by_agent": self.game_stats[
-                "cumulative_shaped_rewards_by_agent"
-            ],
-            "ep_length": self.state.timestep,
-        }
-        return env_info
-
-    def _update_game_stats(self, infos):
-        """
-        Update the game stats dict based on the events of the current step
-        NOTE: the timer ticks after events are logged, so there can be events from time 0 to time self.horizon - 1
-        """
-        self.game_stats["cumulative_sparse_rewards_by_agent"] += np.array(
-            infos["sparse_reward_by_agent"]
+        env_info.update(
+            {
+                "useless_actions": sum(mdp_infos["useless_actions_by_agent"]),
+                "combined_sparse_r": sum(env_info["sparse_r_by_agent"]),
+                "combined_shaped_r": sum(env_info["shaped_r_by_agent"]),
+            }
         )
-        self.game_stats["cumulative_shaped_rewards_by_agent"] += np.array(
-            infos["shaped_reward_by_agent"]
-        )
-
-        for event_type, bool_list_by_agent in infos["event_infos"].items():
-            # For each event type, store the timestep if it occurred
-            event_occurred_by_idx = [int(x) for x in bool_list_by_agent]
-            for idx, event_by_agent in enumerate(event_occurred_by_idx):
-                if event_by_agent:
-                    self.game_stats[event_type][idx].append(self.state.timestep)
+        return env_info
 
     ####################
     # TRAJECTORY LOGIC #
@@ -656,6 +633,7 @@ class Overcooked(gym.Env):
 
         next_state, reward, done, env_info = self.base_env.step(joint_action)
         observation = self.featurize_fn(next_state)
+        # wandb.log(env_info)
 
         # if self.agent_idx == 0:
         #     both_agents_ob = (ob_p0, ob_p1)
