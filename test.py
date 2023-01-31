@@ -3,6 +3,7 @@ import os
 import gym
 import torch
 from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.monitor import Monitor
@@ -12,9 +13,11 @@ from wandb.integration.sb3 import WandbCallback
 
 import wandb
 from cnn import CNN
+from monitor import OvercookedMonitor
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
 from overcooked_ai_py.visualization.state_visualizer import StateVisualizer
+from tensorboard_callback import TensorboardCallback
 
 MODELS_DIR = "/home/babo/repos/overcooked_ai/models/"
 RUNS_DIR = "/home/babo/repos/overcooked_ai/runs/"
@@ -36,8 +39,14 @@ def make_env(env_id, layout_name, horizon, rank, seed=None):
         )
         if seed is not None:
             env.seed(seed + rank)
-        # env = Monitor(env, info_keywords=("ep_shaped_r", "ep_sparse_r"))
-        env = Monitor(env)
+        env = OvercookedMonitor(
+            env=env,
+            # info_keywords=(
+            #     "combined_shaped_r",
+            #     "combined_sparse_r",
+            #     "useless_actions_by_agent",
+            # ),
+        )
         return env
 
     if seed is not None:
@@ -55,7 +64,7 @@ if __name__ == "__main__":
         config=wandb_config,
         sync_tensorboard=True,
     )
-    num_cpu = 24
+    num_cpu = 1
     env_id = "Overcooked-v0"
     layout_name = "asymmetric_advantages"
     horizon = 500
@@ -87,11 +96,14 @@ if __name__ == "__main__":
     obs = env.reset()
     model.learn(
         total_timesteps=wandb_config["total_timesteps"],
-        callback=WandbCallback(
-            gradient_save_freq=0,
-            model_save_path=os.path.join(save_dir, f"{run.id}"),
-            verbose=2,
-        ),
+        callback=[
+            WandbCallback(
+                gradient_save_freq=0,
+                model_save_path=os.path.join(save_dir, f"{run.id}"),
+                verbose=2,
+            ),
+            TensorboardCallback(),
+        ],
     )
     run.finish()  # type: ignore
     model.save(save_dir)
