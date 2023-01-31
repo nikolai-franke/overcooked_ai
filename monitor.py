@@ -1,14 +1,13 @@
-from typing import Optional, Tuple, Union
+from typing import Union
 
-import gym
 import numpy as np
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.type_aliases import GymObs, GymStepReturn
 
 
 class OvercookedMonitor(Monitor):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.shaped_rewards = []
         self.sparse_rewards = []
         self.useless_actions = []

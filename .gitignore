@@ -160,3 +160,6 @@ data/pbt_exp/
 data/gail_runs/
 data/joint_ppo_runs/
 data/ppo_exp/
+runs/ppo
+models
+wandb
