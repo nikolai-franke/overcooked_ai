@@ -1017,14 +1017,14 @@ class OvercookedState(object):
 
 
 BASE_REW_SHAPING_PARAMS = {
-    "PLACEMENT_IN_POT_REW": 3,
-    "DISH_PICKUP_REWARD": 3,
+    "PLACEMENT_IN_POT_REW": 1,
+    "DISH_PICKUP_REWARD": 1,
     "SOUP_PICKUP_REWARD": 5,
     "SOUP_COOK_REWARD": 0,
     "DISH_DISP_DISTANCE_REW": 0,
     "POT_DISTANCE_REW": 0,
     "SOUP_DISTANCE_REW": 0,
-    "USELESS_ACTION_REW": 0,
+    "USELESS_ACTION_REW": -0.1,
 }
 
 EVENT_TYPES = [
@@ -1422,7 +1422,7 @@ class OvercookedGridworld(object):
             "event_infos": events_infos,
             "sparse_reward_by_agent": sparse_reward_by_agent,
             "shaped_reward_by_agent": shaped_reward_by_agent,
-            "useless_actions": useless_actions_by_agent,
+            "useless_actions_by_agent": useless_actions_by_agent,
         }
         if display_phi:
             assert (
