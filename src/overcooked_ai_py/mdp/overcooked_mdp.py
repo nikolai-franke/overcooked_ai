@@ -1021,10 +1021,11 @@ BASE_REW_SHAPING_PARAMS = {
     "DISH_PICKUP_REWARD": 1,
     "SOUP_PICKUP_REWARD": 5,
     "SOUP_COOK_REWARD": 0,
+    "USELESS_ACTION_REW": -0.1,
+    "WRONG_DELIVERY_REW": -1.0,
     "DISH_DISP_DISTANCE_REW": 0,
     "POT_DISTANCE_REW": 0,
     "SOUP_DISTANCE_REW": 0,
-    "USELESS_ACTION_REW": -0.1,
 }
 
 EVENT_TYPES = [
@@ -1406,6 +1407,7 @@ class OvercookedGridworld(object):
             sparse_reward_by_agent,
             shaped_reward_by_agent,
             useless_actions_by_agent,
+            wrong_deliveries_by_agent,
         ) = self.resolve_interacts(new_state, joint_action, events_infos)
         assert new_state.player_positions == state.player_positions
         assert new_state.player_orientations == state.player_orientations
@@ -1423,6 +1425,7 @@ class OvercookedGridworld(object):
             "sparse_reward_by_agent": sparse_reward_by_agent,
             "shaped_reward_by_agent": shaped_reward_by_agent,
             "useless_actions_by_agent": useless_actions_by_agent,
+            "wrong_deliveries_by_agent": wrong_deliveries_by_agent,
         }
         if display_phi:
             assert (
@@ -1443,7 +1446,8 @@ class OvercookedGridworld(object):
         """
         pot_states = self.get_pot_states(new_state)
         # We divide reward by agent to keep track of who contributed
-        sparse_reward, shaped_reward, useless_actions = (
+        sparse_reward, shaped_reward, useless_actions, wrong_delivery = (
+            [0] * self.num_players,
             [0] * self.num_players,
             [0] * self.num_players,
             [0] * self.num_players,
@@ -1611,6 +1615,10 @@ class OvercookedGridworld(object):
                     if obj.name == "soup":
 
                         delivery_rew = self.deliver_soup(new_state, player, obj)
+                        # Soup is not in the recipe list
+                        if delivery_rew == 0:
+                            wrong_delivery[player_idx] += 1
+
                         sparse_reward[player_idx] += delivery_rew
 
                         # Log soup delivery
@@ -1623,8 +1631,9 @@ class OvercookedGridworld(object):
                     useless_actions[player_idx] += 1
 
             shaped_reward[player_idx] += useless_actions[player_idx] * self.reward_shaping_params["USELESS_ACTION_REW"]
+            shaped_reward[player_idx] += wrong_delivery[player_idx] * self.reward_shaping_params["WRONG_DELIVERY_REW"]
 
-        return sparse_reward, shaped_reward, useless_actions
+        return sparse_reward, shaped_reward, useless_actions, wrong_delivery
 
     def get_recipe_value(
         self,
