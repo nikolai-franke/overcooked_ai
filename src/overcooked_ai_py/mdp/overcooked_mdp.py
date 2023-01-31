@@ -3,6 +3,7 @@ import itertools
 import warnings
 from collections import Counter, defaultdict
 from functools import reduce
+from matplotlib import use
 
 import numpy as np
 
@@ -1016,12 +1017,14 @@ class OvercookedState(object):
 
 
 BASE_REW_SHAPING_PARAMS = {
-    "PLACEMENT_IN_POT_REW": 3,
-    "DISH_PICKUP_REWARD": 3,
+    "PLACEMENT_IN_POT_REW": 1,
+    "DISH_PICKUP_REWARD": 1,
     "SOUP_PICKUP_REWARD": 5,
+    "SOUP_COOK_REWARD": 0,
     "DISH_DISP_DISTANCE_REW": 0,
     "POT_DISTANCE_REW": 0,
     "SOUP_DISTANCE_REW": 0,
+    "USELESS_ACTION_REW": -0.1,
 }
 
 EVENT_TYPES = [
@@ -1402,6 +1405,7 @@ class OvercookedGridworld(object):
         (
             sparse_reward_by_agent,
             shaped_reward_by_agent,
+            useless_actions_by_agent,
         ) = self.resolve_interacts(new_state, joint_action, events_infos)
         assert new_state.player_positions == state.player_positions
         assert new_state.player_orientations == state.player_orientations
@@ -1418,6 +1422,7 @@ class OvercookedGridworld(object):
             "event_infos": events_infos,
             "sparse_reward_by_agent": sparse_reward_by_agent,
             "shaped_reward_by_agent": shaped_reward_by_agent,
+            "useless_actions_by_agent": useless_actions_by_agent,
         }
         if display_phi:
             assert (
@@ -1438,7 +1443,8 @@ class OvercookedGridworld(object):
         """
         pot_states = self.get_pot_states(new_state)
         # We divide reward by agent to keep track of who contributed
-        sparse_reward, shaped_reward = (
+        sparse_reward, shaped_reward, useless_actions = (
+            [0] * self.num_players,
             [0] * self.num_players,
             [0] * self.num_players,
         )
@@ -1485,33 +1491,53 @@ class OvercookedGridworld(object):
                     obj = new_state.remove_object(i_pos)
                     player.set_object(obj)
 
-            elif terrain_type == "O" and player.held_object is None:
-                self.log_object_pickup(
-                    events_infos, new_state, "onion", pot_states, player_idx
-                )
+                else: 
+                    # Player either tries to pick up item while holding another one, or there is no item on the counter
+                    useless_actions[player_idx] += 1
 
-                # Onion pickup from dispenser
-                obj = ObjectState("onion", pos)
-                player.set_object(obj)
+            elif terrain_type == "O":
+                if player.held_object is None:
+                    self.log_object_pickup(
+                        events_infos, new_state, "onion", pot_states, player_idx
+                    )
 
-            elif terrain_type == "T" and player.held_object is None:
-                # Tomato pickup from dispenser
-                player.set_object(ObjectState("tomato", pos))
+                    # Onion pickup from dispenser
+                    obj = ObjectState("onion", pos)
+                    player.set_object(obj)
+                else:
+                    # Player tries to use onion dispenser while holding an item
+                    useless_actions[player_idx] += 1
 
-            elif terrain_type == "D" and player.held_object is None:
-                self.log_object_pickup(
-                    events_infos, new_state, "dish", pot_states, player_idx
-                )
+            elif terrain_type == "T":
+                if player.held_object is None:
+                    #TODO: why is there no logging here?
+                    # Tomato pickup from dispenser
+                    player.set_object(ObjectState("tomato", pos))
+                else:
+                    # Player tries to use tomato dispenser while holding an item
+                    useless_actions[player_idx] += 1
 
-                # Give shaped reward if pickup is useful
-                if self.is_dish_pickup_useful(new_state, pot_states):
-                    shaped_reward[player_idx] += self.reward_shaping_params[
-                        "DISH_PICKUP_REWARD"
-                    ]
+            elif terrain_type == "D":
+                if player.held_object is None:
+                    self.log_object_pickup(
+                        events_infos, new_state, "dish", pot_states, player_idx
+                    )
 
-                # Perform dish pickup from dispenser
-                obj = ObjectState("dish", pos)
-                player.set_object(obj)
+                    # Give shaped reward if pickup is useful
+                    if self.is_dish_pickup_useful(new_state, pot_states):
+                        shaped_reward[player_idx] += self.reward_shaping_params[
+                            "DISH_PICKUP_REWARD"
+                        ]
+                    else:
+                        # Pickup is not useful
+                        useless_actions[player_idx] += 1
+
+                    # Perform dish pickup from dispenser
+                    obj = ObjectState("dish", pos)
+                    player.set_object(obj)
+                else:
+                    # Player tries to use dish dispenser while holding an item
+                    useless_actions[player_idx] += 1
 
             elif terrain_type == "P" and not player.has_object():
                 # An interact action will only start cooking the soup if we are using the new dynamics
@@ -1521,6 +1547,10 @@ class OvercookedGridworld(object):
                 ):
                     soup = new_state.get_object(i_pos)
                     soup.begin_cooking()
+                    shaped_reward[player_idx] += self.reward_shaping_params["SOUP_COOK_REWARD"]
+                else:
+                    # Interact does nothing
+                    useless_actions[player_idx] += 1
 
             elif terrain_type == "P" and player.has_object():
 
@@ -1568,18 +1598,33 @@ class OvercookedGridworld(object):
                         )
                         if obj.name == Recipe.ONION:
                             events_infos["potting_onion"][player_idx] = True
+                    else:
+                        # Soup is already full
+                        useless_actions[player_idx] += 1
+                else:
+                    # Player tries to put non-ingredient object into pot or collect soup that is not ready
+                    useless_actions[player_idx] += 1
 
-            elif terrain_type == "S" and player.has_object():
-                obj = player.get_object()
-                if obj.name == "soup":
+            elif terrain_type == "S":
+                if player.has_object():
+                    obj = player.get_object()
+                    if obj.name == "soup":
 
-                    delivery_rew = self.deliver_soup(new_state, player, obj)
-                    sparse_reward[player_idx] += delivery_rew
+                        delivery_rew = self.deliver_soup(new_state, player, obj)
+                        sparse_reward[player_idx] += delivery_rew
 
-                    # Log soup delivery
-                    events_infos["soup_delivery"][player_idx] = True
+                        # Log soup delivery
+                        events_infos["soup_delivery"][player_idx] = True
+                    else:
+                        # Player tries to serve object that is not a soup
+                        useless_actions[player_idx] += 1
+                else:
+                    # Player tries to use serving location without holding an object
+                    useless_actions[player_idx] += 1
 
-        return sparse_reward, shaped_reward
+            shaped_reward[player_idx] += useless_actions[player_idx] * self.reward_shaping_params["USELESS_ACTION_REW"]
+
+        return sparse_reward, shaped_reward, useless_actions
 
     def get_recipe_value(
         self,
@@ -2416,7 +2461,7 @@ class OvercookedGridworld(object):
         all_objects = overcooked_state.all_objects_list
 
         def make_layer(position, value):
-            layer = np.zeros(self.shape)
+            layer = np.zeros(self.shape, dtype=np.uint8)
             layer[position] = value
             return layer
 
@@ -2443,11 +2488,11 @@ class OvercookedGridworld(object):
                 + variable_map_features
                 + urgency_features
             )
-            state_mask_dict = {k: np.zeros(self.shape) for k in LAYERS}
+            state_mask_dict = {k: np.zeros(self.shape, dtype=np.uint8) for k in LAYERS}
 
             # MAP LAYERS
             if horizon - overcooked_state.timestep < 40:
-                state_mask_dict["urgency"] = np.ones(self.shape)
+                state_mask_dict["urgency"] = np.ones(self.shape, dtype=np.uint8)
 
             for loc in self.get_counter_locations():
                 state_mask_dict["counter_loc"][loc] = 1
@@ -2550,18 +2595,16 @@ class OvercookedGridworld(object):
             state_mask_stack = np.array(
                 [state_mask_dict[layer_id] for layer_id in LAYERS]
             )
-            state_mask_stack = np.transpose(state_mask_stack, (1, 2, 0))
-            assert state_mask_stack.shape[:2] == self.shape
-            assert state_mask_stack.shape[2] == len(LAYERS)
+            # state_mask_stack = np.transpose(state_mask_stack, (1, 2, 0))
+            assert state_mask_stack.shape[1:] == self.shape
+            assert state_mask_stack.shape[0] == len(LAYERS)
             # NOTE: currently not including time left or order_list in featurization
-            return np.array(state_mask_stack).astype(int)
+            return np.array(state_mask_stack)
 
         # NOTE: Currently not very efficient, a decent amount of computation repeated here
         num_players = len(overcooked_state.players)
-        final_obs_for_players = tuple(
-            process_for_player(i) for i in range(num_players)
-        )
-        return final_obs_for_players
+        final_obs = process_for_player(0)
+        return final_obs
 
     @property
     def featurize_state_shape(self):

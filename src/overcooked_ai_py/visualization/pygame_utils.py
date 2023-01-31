@@ -26,9 +26,7 @@ def run_static_resizeable_window(surface, fps=30):
                 window = pygame.display.set_mode(
                     event.dict["size"], HWSURFACE | DOUBLEBUF | RESIZABLE
                 )
-                window.blit(
-                    pygame.transform.scale(surface, event.dict["size"]), (0, 0)
-                )
+                window.blit(pygame.transform.scale(surface, event.dict["size"]), (0, 0))
                 pygame.display.flip()
                 clock.tick(fps)
     except:
@@ -82,9 +80,7 @@ class MultiFramePygameImage:
             frames_path
         )
 
-    def blit_on_surface(
-        self, surface, top_left_pixel_position, frame_name, **kwargs
-    ):
+    def blit_on_surface(self, surface, top_left_pixel_position, frame_name, **kwargs):
         surface.blit(
             self.image,
             top_left_pixel_position,
@@ -96,9 +92,7 @@ class MultiFramePygameImage:
     def load_frames_rectangles(json_path):
         frames_json = load_from_json(json_path)
 
-        if (
-            "textures" in frames_json.keys()
-        ):  # check if its format of soups.json
+        if "textures" in frames_json.keys():  # check if its format of soups.json
             assert (
                 frames_json["textures"][0]["scale"] == 1
             )  # not implemented support for scale here
