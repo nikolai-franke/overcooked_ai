@@ -249,16 +249,10 @@ class OvercookedEnv(object):
             self.state, joint_action, display_phi, self.mp
         )
 
-        # Update game_stats
-        # self._update_game_stats(mdp_infos)
-
         # Update state and done
         self.state = next_state
         done = self.is_done()
         env_info = self._prepare_info_dict(joint_agent_action_info, mdp_infos)
-
-        # if done:
-        #     self._add_episode_info(env_info)
 
         reward = sum(mdp_infos["sparse_reward_by_agent"]) + sum(
             mdp_infos["shaped_reward_by_agent"]
@@ -633,17 +627,6 @@ class Overcooked(gym.Env):
 
         next_state, reward, done, env_info = self.base_env.step(joint_action)
         observation = self.featurize_fn(next_state)
-        # wandb.log(env_info)
-
-        # if self.agent_idx == 0:
-        #     both_agents_ob = (ob_p0, ob_p1)
-        # else:
-        #     both_agents_ob = (ob_p1, ob_p0)
-
-        # env_info["policy_agent_idx"] = self.agent_idx
-
-        # if "episode" in env_info.keys():
-        #     env_info["episode"]["policy_agent_idx"] = self.agent_idx
 
         return observation, reward, done, env_info
 
