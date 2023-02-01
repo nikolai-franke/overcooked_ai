@@ -2,7 +2,7 @@ import os
 
 import gym
 import torch
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from wandb.integration.sb3 import WandbCallback
@@ -12,10 +12,8 @@ from cnn import CNN
 from monitor import OvercookedMonitor
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
+from static import MODELS_DIR, RUNS_DIR
 from tensorboard_callback import TensorboardCallback
-
-MODELS_DIR = "/home/babo/repos/overcooked_ai/models/"
-RUNS_DIR = "/home/babo/repos/overcooked_ai/runs/"
 
 
 def make_env(rank, env_id, layout_name, horizon, rew_shaping_params=None, seed=None):
@@ -60,6 +58,10 @@ config_defaults = {
     "rew_useless_action": 0,
     "rew_wrong_delivery": 0,
     "layout_name": "simple_o",
+    "model_name": "ppo",
+    # SAC only config
+    "use_sde": False,
+    "learning_starts": 10_000,
 }
 
 
@@ -67,9 +69,6 @@ def main():
     with wandb.init(config=config_defaults, sync_tensorboard=True) as run:  # type: ignore
         config = wandb.config
         env_id = "Overcooked-v0"
-
-        save_dir = os.path.join(MODELS_DIR, "ppo")
-        tensorboard_dir = os.path.join(RUNS_DIR, "ppo")
 
         total_timesteps = config.total_timesteps
         learning_rate = config.learning_rate
@@ -79,9 +78,12 @@ def main():
         features_dim = config.features_dim
         net_n_layers = config.net_n_layers
         net_n_neurons = config.net_n_neurons
-
+        model_name = config.model_name
         layout_name = config.layout_name
-        model = "ppo"
+
+        # SAC only config
+        use_sde = config.use_sde
+        learning_starts = config.learning_starts
 
         # Reward shaping params
         rew_shaping_params = {
@@ -92,6 +94,10 @@ def main():
             "USELESS_ACTION_REW": config.rew_useless_action,
             "WRONG_DELIVERY_REW": config.rew_wrong_delivery,
         }
+
+        model_save_name = f"{model_name}/{run.name}_{run.id}"
+        save_dir = os.path.join(MODELS_DIR, model_save_name)
+        tensorboard_dir = os.path.join(RUNS_DIR, model_save_name)
 
         env = SubprocVecEnv(
             [
@@ -117,7 +123,7 @@ def main():
             net_arch=net_arch,
         )
 
-        if model == "ppo":
+        if model_name == "ppo":
             model = PPO(
                 "CnnPolicy",
                 env=env,
@@ -126,6 +132,18 @@ def main():
                 verbose=2,
                 batch_size=batch_size,
                 tensorboard_log=tensorboard_dir,
+            )
+        elif model_name == "sac":
+            model = SAC(
+                "CnnPolicy",
+                env=env,
+                policy_kwargs=policy_kwargs,
+                learning_rate=learning_rate,
+                learning_starts=learning_starts,
+                verbose=2,
+                batch_size=batch_size,
+                tensorboard_log=tensorboard_dir,
+                use_sde=use_sde,
             )
         else:
             raise NotImplementedError
