@@ -9,4 +9,6 @@
         { "ingredients" : ["onion", "onion", "onion"]}
     ],
     "rew_shaping_params": None
+    "onion_value" : 5,
+    "onion_time" : 5,
 }
