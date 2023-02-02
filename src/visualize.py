@@ -5,16 +5,9 @@ from stable_baselines3 import PPO, SAC
 
 from overcooked_ai_py.visualization.state_visualizer import StateVisualizer
 
-visualizer = StateVisualizer()
-
-
-def get_trajectory(model_path: str, env):
-    model = PPO.load(model_path, env=env)
-    trajectory = env.rollout(model)
-    return trajectory
-
 
 def save_trajectory_as_gif(trajectories, path: str, trajectory_idx: int = 0):
+    visualizer = StateVisualizer()
     states = trajectories["ep_states"][trajectory_idx]
     grid = trajectories["mdp_params"][trajectory_idx]["terrain"]
     hud_data = visualizer.default_hud_data_from_trajectories(trajectories)
@@ -38,6 +31,7 @@ if __name__ == "__main__":
     env_id = "Overcooked-v0"
     layout_name = "asymmetric_advantages"
     env = make_env(0, env_id, layout_name)()
-    trajs = get_trajectory(model_path, env)
+    model = PPO.load(model_path, env=env)
+    trajs = env.rollout(model)
 
     save_trajectory_as_gif(trajs, "./trajs.gif")
