@@ -10,7 +10,8 @@ def save_trajectory_as_gif(trajectories, path: str, trajectory_idx: int = 0):
     visualizer = StateVisualizer()
     states = trajectories["ep_states"][trajectory_idx]
     grid = trajectories["mdp_params"][trajectory_idx]["terrain"]
-    hud_data = visualizer.default_hud_data_from_trajectories(trajectories)
+    # hud_data = visualizer.default_hud_data_from_trajectories(trajectories)
+    hud_data = visualizer.default_hud_data_sparse(trajectories)
 
     images = []
     for state, hud in zip(states, hud_data):

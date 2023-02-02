@@ -147,6 +147,18 @@ class StateVisualizer:
             for i, state in enumerate(trajectories["ep_states"][trajectory_idx])
         ]
 
+    @staticmethod
+    def default_hud_data_sparse(trajectories, trajectory_idx=0):
+        # hud data should include sparse rewards only
+        scores = cumulative_rewards_from_rew_list(
+            trajectories["ep_infos"][trajectory_idx]["combined_sparse_r"]
+        )
+
+        return [
+            StateVisualizer.default_hud_data(state, score=scores[i])
+            for i, state in enumerate(trajectories["ep_states"][trajectory_idx])
+        ]
+
     def display_rendered_trajectory(
         self,
         trajectories,
