@@ -163,3 +163,4 @@ data/ppo_exp/
 models/
 runs/
 wandb/
+gifs/
