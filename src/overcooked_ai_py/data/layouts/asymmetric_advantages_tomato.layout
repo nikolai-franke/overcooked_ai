@@ -11,7 +11,7 @@
         { "ingredients" : ["tomato"]}
     ],
     "onion_value" : 5,
+    "onion_time" : 10,
     "tomato_value" : 8,
-    "onion_time" : 5,
-    "tomato_time" : 5,
+    "tomato_time" : 12,
 }

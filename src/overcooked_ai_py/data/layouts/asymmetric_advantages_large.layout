@@ -12,5 +12,7 @@
     ],
     "rew_shaping_params": None,
     "onion_value": 5,
-    "onion_time": 5,
+    "onion_time": 10,
+    "tomato_value": 8,
+    "tomato_time": 12,
 }
