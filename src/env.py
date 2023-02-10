@@ -3,10 +3,12 @@ from typing import Optional
 
 import gym
 import numpy as np
+from gym.error import DependencyNotInstalled
 
 from overcooked_ai_py.mdp.actions import Action
 from overcooked_ai_py.mdp.overcooked_mdp import (EVENT_TYPES,
                                                  OvercookedGridworld)
+from overcooked_ai_py.visualization.state_visualizer import StateVisualizer
 
 
 class Overcooked(gym.Env):
@@ -30,11 +32,14 @@ class Overcooked(gym.Env):
             if start_state_fn is not None
             else self.mdp.get_standard_start_state
         )
+
         self.horizon = horizon
         self.observation_space = self._setup_observation_space()
         self.action_space = gym.spaces.MultiDiscrete(
             [len(Action.ALL_ACTIONS), len(Action.ALL_ACTIONS)]
         )
+        self.screen = None
+        self.state_visualizer = None
         self.reset()
 
     def _setup_observation_space(self):
@@ -45,6 +50,8 @@ class Overcooked(gym.Env):
 
     def reset(self):
         self.mdp_state = self.start_state_fn()
+        # keep track of score for easier visualization
+        self.score = 0
         obs = self.featurize_fn(self.mdp_state)
 
         events_dict = {
@@ -75,8 +82,49 @@ class Overcooked(gym.Env):
         obs = self.featurize_fn(self.mdp_state)
         info = self._prepare_info_dict(mdp_infos)
         reward = info["combined_sparse_r"] + info["combined_shaped_r"]
+        self.score += info["combined_sparse_r"]
 
         return obs, reward, done, info
+
+    def render(self, mode="human"):
+        try:
+            import pygame
+        except ImportError:
+            raise DependencyNotInstalled("pygame is not installed")
+
+        if self.state_visualizer is None:
+            self.state_visualizer = StateVisualizer()
+
+        grid = self.mdp.mdp_params["terrain"]
+        hud_data = {
+            "timestep": self.mdp_state.timestep,
+            "all_orders": [r.to_dict() for r in self.mdp_state.all_orders],
+            "bonus_orders": [r.to_dict() for r in self.mdp_state.bonus_orders],
+            "score": self.score,
+        }
+
+        surface = self.state_visualizer.render_state(self.mdp_state, grid, hud_data)
+        if self.screen is None:
+            pygame.init()
+            if mode == "human":
+                pygame.display.init()
+                self.screen = pygame.display.set_mode(
+                    (surface.get_width(), surface.get_height())
+                )
+            elif mode == "rgb_array":
+                self.screen = pygame.Surface(
+                    (surface.get_width(), surface.get_height())
+                )
+            else:
+                raise NotImplementedError
+
+        self.screen.blit(surface, (0, 0))
+        if mode == "human":
+            pygame.display.flip()
+        elif mode == "rgb_array":
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(self.screen)), axes=(2, 1, 0)
+            )
 
     def _prepare_info_dict(self, mdp_infos):
         env_info = {
