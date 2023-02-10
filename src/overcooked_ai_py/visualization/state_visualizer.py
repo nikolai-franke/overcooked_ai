@@ -150,9 +150,12 @@ class StateVisualizer:
     @staticmethod
     def default_hud_data_sparse(trajectories, trajectory_idx=0):
         # hud data should include sparse rewards only
-        scores = cumulative_rewards_from_rew_list(
-            trajectories["ep_infos"][trajectory_idx]["combined_sparse_r"]
-        )
+        sparse_r_list = [
+            info["combined_sparse_r"]
+            for info in trajectories["ep_infos"][trajectory_idx]
+        ]
+        # print(trajectories["ep_rewards"][trajectory_idx])
+        scores = cumulative_rewards_from_rew_list(sparse_r_list)
 
         return [
             StateVisualizer.default_hud_data(state, score=scores[i])

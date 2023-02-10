@@ -669,7 +669,7 @@ class Overcooked(gym.Env):
             assert len(trajectory) == self.base_env.state.timestep, "{} vs {}".format(
                 len(trajectory), self.base_env.state.timestep
             )
-            trajectory.append((next_state, (None, None), 0, True, None))  # type: ignore
+            # trajectory.append((next_state, (None, None), 0, True, None))  # type: ignore
             total_sparse = sum(
                 self.base_env.game_stats["cumulative_sparse_rewards_by_agent"]
             )
@@ -704,8 +704,6 @@ class Overcooked(gym.Env):
         AgentEvaluator.check_trajectories(trajectories, verbose=True)
 
         return trajectories
-
-        # TODO: implement saving trajectories
 
     def render(self, mode="human", close=False):
         pass
