@@ -10,8 +10,9 @@ from wandb.integration.sb3 import WandbCallback
 
 import wandb
 from cnn import CNN
+# from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
+from env import Overcooked
 from monitor import OvercookedMonitor
-from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
 from static import GIFS_DIR, MODELS_DIR, RUNS_DIR
 from tensorboard_callback import TensorboardCallback
@@ -25,15 +26,15 @@ def make_env(
         mdp = OvercookedGridworld.from_layout_name(
             layout_name, rew_shaping_params=rew_shaping_params
         )
-        base_env = OvercookedEnv.from_mdp(
-            mdp,
-            horizon=horizon,
-            info_level=0,
-        )
+        # base_env = OvercookedEnv.from_mdp(
+        #     mdp,
+        #     horizon=horizon,
+        #     info_level=0,
+        # )
         env = gym.make(
             env_id,
-            base_env=base_env,
-            featurize_fn=base_env.lossless_state_encoding_mdp,
+            mdp=mdp,
+            horizon=horizon,
         )
         if seed is not None:
             env.seed(seed + rank)
@@ -68,7 +69,7 @@ config_defaults = {
 def main(config=config_defaults):
     with wandb.init(config=config, entity="nikolai-franke", project="overcooked", sync_tensorboard=True) as run:  # type: ignore
         config = wandb.config
-        env_id = "Overcooked-v0"
+        env_id = "Overcooked-v1"
 
         total_timesteps = config.total_timesteps
         learning_rate = config.learning_rate
