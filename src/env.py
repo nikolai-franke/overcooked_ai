@@ -6,8 +6,7 @@ import numpy as np
 from gym.error import DependencyNotInstalled
 
 from overcooked_ai_py.mdp.actions import Action
-from overcooked_ai_py.mdp.overcooked_mdp import (EVENT_TYPES,
-                                                 OvercookedGridworld)
+from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
 from overcooked_ai_py.visualization.state_visualizer import StateVisualizer
 
 
