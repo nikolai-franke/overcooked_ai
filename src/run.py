@@ -40,7 +40,7 @@ def make_env(
 
 
 config_defaults = {
-    "total_timesteps": 500_000,
+    "total_timesteps": 7_000_000,
     "batch_size": 1024,
     "learning_rate": 1e-4,
     "horizon": 500,
