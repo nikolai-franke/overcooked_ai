@@ -32,7 +32,6 @@ class Overcooked(gym.Env):
             if start_state_fn is not None
             else self.mdp.get_standard_start_state
         )
-
         self.horizon = horizon
         self.observation_space = self._setup_observation_space()
         self.action_space = gym.spaces.MultiDiscrete(
@@ -53,21 +52,6 @@ class Overcooked(gym.Env):
         # keep track of score for easier visualization
         self.score = 0
         obs = self.featurize_fn(self.mdp_state)
-
-        events_dict = {
-            k: [[] for _ in range(self.mdp.num_players)] for k in EVENT_TYPES
-        }
-        rewards_dict = {
-            "cumulative_sparse_rewards_by_agent": np.array(
-                [0.0] * self.mdp.num_players
-            ),
-            "cumulative_shaped_rewards_by_agent": np.array(
-                [0.0] * self.mdp.num_players
-            ),
-            "cumulative_useless_actions_by_agent": np.array([0] * self.mdp.num_players),
-        }
-
-        self.game_stats = {**events_dict, **rewards_dict}
         return obs
 
     def step(self, action):
@@ -121,6 +105,7 @@ class Overcooked(gym.Env):
         self.screen.blit(surface, (0, 0))
         if mode == "human":
             pygame.display.flip()
+
         elif mode == "rgb_array":
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(self.screen)), axes=(2, 1, 0)
