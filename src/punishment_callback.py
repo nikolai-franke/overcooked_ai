@@ -18,7 +18,7 @@ class PunishmentCallback(BaseCallback):
     def _on_rollout_start(self) -> None:
         if self.num_timesteps < self.start_timestep:
             self.training_env.set_attr("punishment_coef", 0.0)
-        elif self.num_timesteps <= self.increase_duration:
-            relative_timestep = self.increase_duration - self.num_timesteps
-            value = min(self.num_timesteps / relative_timestep, 1.0)
+        else:
+            relative_timestep = self.num_timesteps - self.start_timestep
+            value = min(relative_timestep / self.increase_duration, 1.0)
             self.training_env.set_attr("punishment_coef", value)
