@@ -3,17 +3,13 @@ import itertools
 import warnings
 from collections import Counter, defaultdict
 from functools import reduce
-from matplotlib import use
 
 import numpy as np
+from matplotlib import use
 
 from overcooked_ai_py.mdp.actions import Action, Direction
-from overcooked_ai_py.utils import (
-    OvercookedException,
-    classproperty,
-    pos_distance,
-    read_layout_dict,
-)
+from overcooked_ai_py.utils import (OvercookedException, classproperty,
+                                    pos_distance, read_layout_dict)
 
 
 class Recipe:
@@ -1020,9 +1016,9 @@ BASE_REW_SHAPING_PARAMS = {
     "PLACEMENT_IN_POT_REW": 1,
     "DISH_PICKUP_REWARD": 1,
     "SOUP_PICKUP_REWARD": 5,
-    "SOUP_COOK_REWARD": 0,
     "USELESS_ACTION_REW": -0.1,
     "WRONG_DELIVERY_REW": -1.0,
+    "COLLISION_REW": -1.0,
     "DISH_DISP_DISTANCE_REW": 0,
     "POT_DISTANCE_REW": 0,
     "SOUP_DISTANCE_REW": 0,
@@ -1413,7 +1409,8 @@ class OvercookedGridworld(object):
         assert new_state.player_orientations == state.player_orientations
 
         # Resolve player movements
-        self.resolve_movement(new_state, joint_action)
+        collision = int(self.resolve_movement(new_state, joint_action))
+        shaped_reward_by_agent  = [r + 0.5 * collision * self.reward_shaping_params["COLLISION_REW"] for r in shaped_reward_by_agent]
 
         # Finally, environment effects
         self.step_environment_effects(new_state)
@@ -1426,6 +1423,7 @@ class OvercookedGridworld(object):
             "shaped_reward_by_agent": shaped_reward_by_agent,
             "useless_actions_by_agent": useless_actions_by_agent,
             "wrong_deliveries_by_agent": wrong_deliveries_by_agent,
+            "collision": int(collision),
         }
         if display_phi:
             assert (
@@ -1551,7 +1549,6 @@ class OvercookedGridworld(object):
                 ):
                     soup = new_state.get_object(i_pos)
                     soup.begin_cooking()
-                    shaped_reward[player_idx] += self.reward_shaping_params["SOUP_COOK_REWARD"]
                 else:
                     # Interact does nothing
                     useless_actions[player_idx] += 1
@@ -1703,6 +1700,7 @@ class OvercookedGridworld(object):
         (
             new_positions,
             new_orientations,
+            collision
         ) = self.compute_new_positions_and_orientations(
             state.players, joint_action
         )
@@ -1710,6 +1708,7 @@ class OvercookedGridworld(object):
             state.players, new_positions, new_orientations
         ):
             player_state.update_pos_and_or(new_pos, new_o)
+        return collision
 
     def compute_new_positions_and_orientations(
         self, old_player_states, joint_action
@@ -1724,8 +1723,8 @@ class OvercookedGridworld(object):
             )
         )
         old_positions = tuple(p.position for p in old_player_states)
-        new_positions = self._handle_collisions(old_positions, new_positions)
-        return new_positions, new_orientations
+        new_positions, collision = self._handle_collisions(old_positions, new_positions)
+        return new_positions, new_orientations, collision
 
     def is_transition_collision(self, old_positions, new_positions):
         # Checking for any players ending in same square
@@ -1762,8 +1761,8 @@ class OvercookedGridworld(object):
     def _handle_collisions(self, old_positions, new_positions):
         """If agents collide, they stay at their old locations"""
         if self.is_transition_collision(old_positions, new_positions):
-            return old_positions
-        return new_positions
+            return old_positions, True
+        return new_positions, False
 
     def _get_terrain_type_pos_dict(self):
         pos_dict = defaultdict(list)
@@ -3304,4 +3303,3 @@ class OvercookedGridworld(object):
 
         # At last
         return potential
-

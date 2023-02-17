@@ -26,11 +26,12 @@ class Overcooked(gym.Env):
             if featurize_fn is not None
             else self.mdp.lossless_state_encoding
         )
-        self.start_state_fn = (
-            start_state_fn
-            if start_state_fn is not None
-            else self.mdp.get_standard_start_state
-        )
+        # self.start_state_fn = (
+        #     start_state_fn
+        #     if start_state_fn is not None
+        #     else self.mdp.get_standard_start_state
+        # )
+        self.start_state_fn = self.mdp.get_random_start_state_fn(random_start_pos=True)
         self.horizon = horizon
         self.observation_space = self._setup_observation_space()
         self.action_space = gym.spaces.MultiDiscrete(
@@ -38,6 +39,7 @@ class Overcooked(gym.Env):
         )
         self.screen = None
         self.state_visualizer = None
+        self.shaped_reward_coef = 1.0
         self.reset()
 
     def _setup_observation_space(self):
@@ -50,6 +52,8 @@ class Overcooked(gym.Env):
         self.mdp_state = self.start_state_fn()
         # keep track of score for easier visualization
         self.score = 0
+        self.collisions = 0
+        self.useless_actions = 0
         obs = self.featurize_fn(self.mdp_state)
         return obs
 
@@ -64,8 +68,13 @@ class Overcooked(gym.Env):
         done = self._is_done()
         obs = self.featurize_fn(self.mdp_state)
         info = self._prepare_info_dict(mdp_infos)
-        reward = info["combined_sparse_r"] + info["combined_shaped_r"]
+        reward = (
+            info["combined_sparse_r"]
+            + self.shaped_reward_coef * info["combined_shaped_r"]
+        )
         self.score += info["combined_sparse_r"]
+        self.collisions += info["collision"]
+        self.useless_actions += info["useless_actions"]
 
         return obs, reward, done, info
 
@@ -82,8 +91,10 @@ class Overcooked(gym.Env):
         hud_data = {
             "timestep": self.mdp_state.timestep,
             "all_orders": [r.to_dict() for r in self.mdp_state.all_orders],
-            "bonus_orders": [r.to_dict() for r in self.mdp_state.bonus_orders],
+            # "bonus_orders": [r.to_dict() for r in self.mdp_state.bonus_orders],
             "score": self.score,
+            "collisions": self.collisions,
+            "useless_actions": self.useless_actions,
         }
 
         surface = self.state_visualizer.render_state(self.mdp_state, grid, hud_data)
@@ -116,6 +127,7 @@ class Overcooked(gym.Env):
             "wrong_deliveries": sum(mdp_infos["wrong_deliveries_by_agent"]),
             "combined_sparse_r": sum(mdp_infos["sparse_reward_by_agent"]),
             "combined_shaped_r": sum(mdp_infos["shaped_reward_by_agent"]),
+            "collision": mdp_infos["collision"],
         }
         return env_info
 
