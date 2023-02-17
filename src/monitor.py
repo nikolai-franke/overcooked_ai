@@ -10,6 +10,7 @@ class OvercookedMonitor(Monitor):
         super().__init__(*args, **kwargs)
         self.shaped_rewards = []
         self.sparse_rewards = []
+        self.punishments = []
         self.useless_actions = []
         self.wrong_deliveries = []
         self.collisions = []
@@ -17,6 +18,7 @@ class OvercookedMonitor(Monitor):
     def reset(self, **kwargs) -> GymObs:
         self.shaped_rewards = []
         self.sparse_rewards = []
+        self.punishments = []
         self.useless_actions = []
         self.wrong_deliveries = []
         self.collisions = []
@@ -25,6 +27,7 @@ class OvercookedMonitor(Monitor):
     def step(self, action: Union[np.ndarray, int]) -> GymStepReturn:
         observation, reward, done, info = super().step(action)
         self.shaped_rewards.append(info["combined_shaped_r"])
+        self.punishments.append(info["combined_punishment"])
         self.sparse_rewards.append(info["combined_sparse_r"])
         self.useless_actions.append(info["useless_actions"])
         self.wrong_deliveries.append(info["wrong_deliveries"])
@@ -34,6 +37,7 @@ class OvercookedMonitor(Monitor):
                 {
                     "ep_shaped_r": sum(self.shaped_rewards),
                     "ep_sparse_r": sum(self.sparse_rewards),
+                    "ep_punishment": sum(self.punishments),
                     "ep_useless_a": sum(self.useless_actions),
                     "ep_wrong_d": sum(self.wrong_deliveries),
                     "ep_collisions": sum(self.collisions),
@@ -50,3 +54,12 @@ class OvercookedMonitor(Monitor):
     def shaped_reward_coef(self, value: float):
         assert 0.0 <= value and value <= 1.0
         self.env.unwrapped.shaped_reward_coef = value
+
+    @property
+    def punishment_coef(self):
+        return self._punishment_coef
+
+    @punishment_coef.setter
+    def punishment_coef(self, value: float):
+        assert 0.0 <= value and value <= 1.0
+        self.env.unwrapped.punishment_coef = value

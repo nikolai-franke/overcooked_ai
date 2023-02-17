@@ -1402,28 +1402,30 @@ class OvercookedGridworld(object):
         (
             sparse_reward_by_agent,
             shaped_reward_by_agent,
+            punishment_by_agent,
             useless_actions_by_agent,
             wrong_deliveries_by_agent,
         ) = self.resolve_interacts(new_state, joint_action, events_infos)
         assert new_state.player_positions == state.player_positions
         assert new_state.player_orientations == state.player_orientations
 
-        # Resolve player movements
+        # Resolve player movements and add punishment for collisions
+        # TODO: this should not be done over here
         collision = int(self.resolve_movement(new_state, joint_action))
-        shaped_reward_by_agent  = [r + 0.5 * collision * self.reward_shaping_params["COLLISION_REW"] for r in shaped_reward_by_agent]
+        punishment_by_agent = [r + 0.5 * collision * self.reward_shaping_params["COLLISION_REW"] for r in punishment_by_agent]
 
         # Finally, environment effects
         self.step_environment_effects(new_state)
 
         # Additional dense reward logic
-        # shaped_reward += self.calculate_distance_based_shaped_reward(state, new_state)
         infos = {
             "event_infos": events_infos,
             "sparse_reward_by_agent": sparse_reward_by_agent,
             "shaped_reward_by_agent": shaped_reward_by_agent,
+            "punishment_by_agent": punishment_by_agent,
             "useless_actions_by_agent": useless_actions_by_agent,
             "wrong_deliveries_by_agent": wrong_deliveries_by_agent,
-            "collision": int(collision),
+            "collision": collision,
         }
         if display_phi:
             assert (
@@ -1444,7 +1446,8 @@ class OvercookedGridworld(object):
         """
         pot_states = self.get_pot_states(new_state)
         # We divide reward by agent to keep track of who contributed
-        sparse_reward, shaped_reward, useless_actions, wrong_delivery = (
+        sparse_reward, shaped_reward, punishment, useless_actions, wrong_delivery = (
+            [0] * self.num_players,
             [0] * self.num_players,
             [0] * self.num_players,
             [0] * self.num_players,
@@ -1627,10 +1630,10 @@ class OvercookedGridworld(object):
                     # Player tries to use serving location without holding an object
                     useless_actions[player_idx] += 1
 
-            shaped_reward[player_idx] += useless_actions[player_idx] * self.reward_shaping_params["USELESS_ACTION_REW"]
-            shaped_reward[player_idx] += wrong_delivery[player_idx] * self.reward_shaping_params["WRONG_DELIVERY_REW"]
+            punishment[player_idx] += useless_actions[player_idx] * self.reward_shaping_params["USELESS_ACTION_REW"]
+            punishment[player_idx] += wrong_delivery[player_idx] * self.reward_shaping_params["WRONG_DELIVERY_REW"]
 
-        return sparse_reward, shaped_reward, useless_actions, wrong_delivery
+        return sparse_reward, shaped_reward, punishment, useless_actions, wrong_delivery
 
     def get_recipe_value(
         self,

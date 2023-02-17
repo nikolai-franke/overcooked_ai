@@ -40,6 +40,7 @@ class Overcooked(gym.Env):
         self.screen = None
         self.state_visualizer = None
         self.shaped_reward_coef = 1.0
+        self.punishment_coef = 1.0
         self.reset()
 
     def _setup_observation_space(self):
@@ -71,6 +72,7 @@ class Overcooked(gym.Env):
         reward = (
             info["combined_sparse_r"]
             + self.shaped_reward_coef * info["combined_shaped_r"]
+            + self.punishment_coef * info["combined_punishment"]
         )
         self.score += info["combined_sparse_r"]
         self.collisions += info["collision"]
@@ -127,6 +129,7 @@ class Overcooked(gym.Env):
             "wrong_deliveries": sum(mdp_infos["wrong_deliveries_by_agent"]),
             "combined_sparse_r": sum(mdp_infos["sparse_reward_by_agent"]),
             "combined_shaped_r": sum(mdp_infos["shaped_reward_by_agent"]),
+            "combined_punishment": sum(mdp_infos["punishment_by_agent"]),
             "collision": mdp_infos["collision"],
         }
         return env_info
