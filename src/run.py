@@ -12,6 +12,8 @@ import wandb
 from cnn import CNN
 from monitor import OvercookedMonitor
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
+from punishment_callback import PunishmentCallback
+from shaped_reward_callback import ShapedRewardCallback
 from static import MODELS_DIR, RUNS_DIR
 from tensorboard_callback import TensorboardCallback
 
@@ -40,19 +42,31 @@ def make_env(
 
 
 config_defaults = {
-    "total_timesteps": 7_000_000,
-    "batch_size": 1024,
-    "learning_rate": 1e-4,
-    "horizon": 500,
+    "seed": None,
+    "total_timesteps": 10_000_000,
+    "batch_size": 1920,
+    "learning_rate": 6e-4,
+    "horizon": 400,
     "num_cpu": 24,
     "features_dim": 64,
-    "net_n_neurons": 256,
+    "net_n_neurons": 64,
     "net_n_layers": 2,
-    "shaped_reward": 1,
-    "shaped_punishment": 0,
-    "layout_name": "asymmetric_advantages",
+    "placement_in_pot_reward": 3,
+    "dish_pickup_reward": 3,
+    "soup_pickup_reward": 5,
+    "collision_reward": 0,
+    "useless_action_reward": -1.0,
+    "wrong_delivery_reward": -10.0,
+    "layout_name": "coordination_ring_small",
     "model_name": "ppo",
-    "n_epochs": 10,
+    "n_steps": 400,
+    "n_epochs": 8,
+    "ent_coef": 0.01,
+    "clip_range": 0.05,
+    "max_grad_norm": 0.1,
+    "shaped_rewards_horizon": None,
+    "punishment_start": 3_000_000,
+    "punishment_inv_horizon": 2_000_000,
 }
 
 
@@ -61,6 +75,7 @@ def main(config=config_defaults):
         config = wandb.config
         env_id = "Overcooked-v1"
 
+        seed = config.seed
         total_timesteps = config.total_timesteps
         learning_rate = config.learning_rate
         batch_size = config.batch_size
@@ -72,15 +87,22 @@ def main(config=config_defaults):
         model_name = config.model_name
         layout_name = config.layout_name
         n_epochs = config.n_epochs
+        n_steps = config.n_steps
+        ent_coef = config.ent_coef
+        clip_range = config.clip_range
+        max_grad_norm = config.max_grad_norm
+        shaped_rewards_horizon = config.shaped_rewards_horizon
+        punishment_start = config.punishment_start
+        punishment_inv_horizon = config.punishment_inv_horizon
 
         # Reward shaping params
         rew_shaping_params = {
-            "PLACEMENT_IN_POT_REW": config.shaped_reward,
-            "DISH_PICKUP_REWARD": config.shaped_reward,
-            "SOUP_PICKUP_REWARD": config.shaped_reward,
-            "SOUP_COOK_REWARD": config.shaped_reward,
-            "USELESS_ACTION_REW": config.shaped_punishment,
-            "WRONG_DELIVERY_REW": config.shaped_punishment,
+            "PLACEMENT_IN_POT_REW": config.placement_in_pot_reward,
+            "DISH_PICKUP_REWARD": config.dish_pickup_reward,
+            "SOUP_PICKUP_REWARD": config.soup_pickup_reward,
+            "COLLISION_REW": config.collision_reward,
+            "USELESS_ACTION_REW": config.useless_action_reward,
+            "WRONG_DELIVERY_REW": config.wrong_delivery_reward,
         }
 
         model_save_name = f"{model_name}/{run.name}_{run.id}"
@@ -95,6 +117,7 @@ def main(config=config_defaults):
                     layout_name,
                     horizon,
                     rew_shaping_params,
+                    seed=seed,
                 )
                 for i in range(num_cpu)
             ]
@@ -107,7 +130,7 @@ def main(config=config_defaults):
             features_extractor_class=CNN,
             features_extractor_kwargs=dict(features_dim=features_dim),
             activation_fn=torch.nn.ReLU,
-            normalize_images=False,
+            normalize_images=True,
             net_arch=net_arch,
         )
 
@@ -118,6 +141,10 @@ def main(config=config_defaults):
                 policy_kwargs=policy_kwargs,
                 learning_rate=learning_rate,
                 verbose=2,
+                n_steps=n_steps,
+                clip_range=clip_range,
+                ent_coef=ent_coef,
+                max_grad_norm=max_grad_norm,
                 n_epochs=n_epochs,
                 batch_size=batch_size,
                 tensorboard_log=tensorboard_dir,
@@ -125,12 +152,21 @@ def main(config=config_defaults):
         else:
             raise NotImplementedError
 
+        callback_list = []
+        if shaped_rewards_horizon is not None:
+            callback_list.append(ShapedRewardCallback(shaped_rewards_horizon))
+
+        if punishment_start is not None:
+            assert punishment_inv_horizon is not None
+            callback_list.append(
+                PunishmentCallback(punishment_start, punishment_inv_horizon)
+            )
+        callback_list.append(TensorboardCallback())
+        callback_list.append(WandbCallback(verbose=2))
+
         model.learn(
             total_timesteps=total_timesteps,
-            callback=[
-                TensorboardCallback(),
-                WandbCallback(verbose=2),
-            ],
+            callback=callback_list,
         )
 
         model.save(save_dir)
@@ -142,12 +178,12 @@ def main(config=config_defaults):
         obs = model.env.reset()
         img = model.env.render(mode="rgb_array")
         done = False
-        images = []
+        images = [img]
         while not done:
-            images.append(img)
             action, _ = model.predict(obs)
             obs, _, done, _ = model.env.step(action)
             img = model.env.render("rgb_array")
+            images.append(img)
 
         wandb.log({"video": wandb.Video(np.array(images), fps=10)})
 
