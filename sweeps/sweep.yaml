@@ -1,0 +1,19 @@
+program: ../src/run.py
+name: punishment_horizon_cramped_room
+method: grid
+project: overcooked
+entity: nikolai-franke
+metric:
+  goal: maximize
+  name: rollout/ep_sparse_r
+parameters:
+  seed:
+    values: [0, 100, 200]
+  punishment_start:
+    values: [0, 300000]
+  punishment_inv_horizon:
+    values:
+      [1, 300000]
+  useless_action_reward:
+    values: [-0.1, -1.0]
+

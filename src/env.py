@@ -26,12 +26,11 @@ class Overcooked(gym.Env):
             if featurize_fn is not None
             else self.mdp.lossless_state_encoding
         )
-        # self.start_state_fn = (
-        #     start_state_fn
-        #     if start_state_fn is not None
-        #     else self.mdp.get_standard_start_state
-        # )
-        self.start_state_fn = self.mdp.get_random_start_state_fn(random_start_pos=True)
+        self.start_state_fn = (
+            start_state_fn
+            if start_state_fn is not None
+            else self.mdp.get_standard_start_state
+        )
         self.horizon = horizon
         self.observation_space = self._setup_observation_space()
         self.action_space = gym.spaces.MultiDiscrete(
