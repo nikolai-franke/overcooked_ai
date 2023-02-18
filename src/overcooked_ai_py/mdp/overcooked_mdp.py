@@ -1016,6 +1016,7 @@ BASE_REW_SHAPING_PARAMS = {
     "PLACEMENT_IN_POT_REW": 1,
     "DISH_PICKUP_REWARD": 1,
     "SOUP_PICKUP_REWARD": 5,
+    "SOUP_COOK_REWARD": 1,
     "USELESS_ACTION_REW": -0.1,
     "WRONG_DELIVERY_REW": -1.0,
     "COLLISION_REW": -1.0,
@@ -1552,6 +1553,7 @@ class OvercookedGridworld(object):
                 ):
                     soup = new_state.get_object(i_pos)
                     soup.begin_cooking()
+                    shaped_reward[player_idx] += self.reward_shaping_params["SOUP_COOK_REWARD"]
                 else:
                     # Interact does nothing
                     useless_actions[player_idx] += 1
