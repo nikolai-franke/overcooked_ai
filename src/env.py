@@ -39,7 +39,7 @@ class Overcooked(gym.Env):
         self.screen = None
         self.state_visualizer = None
         self.shaped_reward_coef = 1.0
-        self.punishment_coef = 1.0
+        self.punishment_coef = 0.0
         self.reset()
 
     def _setup_observation_space(self):

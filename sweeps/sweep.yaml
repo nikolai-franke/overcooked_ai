@@ -9,11 +9,8 @@ metric:
 parameters:
   seed:
     values: [0, 100, 200]
-  punishment_start:
-    values: [0, 300000]
-  punishment_inv_horizon:
-    values:
-      [1, 300000]
-  useless_action_reward:
-    values: [-0.1, -1.0]
+  punishment_mode:
+    values: [no_punishment, full, full_half, slow, slow_half]
+  layout_name:
+    values: [cramped_room_small, cramped_room_medium, cramped_room_large]
 

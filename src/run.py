@@ -43,9 +43,10 @@ def make_env(
 
 config_defaults = {
     "seed": None,
-    "total_timesteps": 10_000_000,
+    "total_timesteps": 7_000_000,
     "batch_size": 1920,
     "learning_rate": 6e-4,
+    "lr_linear_schedule": False
     "horizon": 400,
     "num_cpu": 24,
     "features_dim": 64,
@@ -54,19 +55,21 @@ config_defaults = {
     "placement_in_pot_reward": 3,
     "dish_pickup_reward": 3,
     "soup_pickup_reward": 5,
-    "collision_reward": 0,
-    "useless_action_reward": -1.0,
-    "wrong_delivery_reward": -10.0,
-    "layout_name": "coordination_ring_small",
+    "soup_cook_reward": 0,
+    "collision_reward": -3,
+    "useless_action_reward": -0.1,
+    "wrong_delivery_reward": -5,
+    "layout_name": "cramped_room_small",
     "model_name": "ppo",
     "n_steps": 400,
     "n_epochs": 8,
-    "ent_coef": 0.01,
+    "ent_coef": 0.0,
     "clip_range": 0.05,
     "max_grad_norm": 0.1,
     "shaped_rewards_horizon": None,
-    "punishment_start": 3_000_000,
-    "punishment_inv_horizon": 2_000_000,
+    "punishment_start": None,
+    "punishment_inv_horizon": None,
+    "punishment_mode": None,
 }
 
 
@@ -78,6 +81,7 @@ def main(config=config_defaults):
         seed = config.seed
         total_timesteps = config.total_timesteps
         learning_rate = config.learning_rate
+        lr_linear_schedule = config.lr_linear_schedule
         batch_size = config.batch_size
         horizon = config.horizon
         num_cpu = config.num_cpu
@@ -85,7 +89,6 @@ def main(config=config_defaults):
         net_n_layers = config.net_n_layers
         net_n_neurons = config.net_n_neurons
         model_name = config.model_name
-        layout_name = config.layout_name
         n_epochs = config.n_epochs
         n_steps = config.n_steps
         ent_coef = config.ent_coef
@@ -95,11 +98,33 @@ def main(config=config_defaults):
         punishment_start = config.punishment_start
         punishment_inv_horizon = config.punishment_inv_horizon
 
+        layout_name = config.layout_name
+        punishment_mode = config.punishment_mode
+        if lr_linear_schedule:
+            learning_rate = lambda progress_remaining: progress_remaining * learning_rate
+
+        if punishment_mode == "no_punishment":
+            punishment_start = None
+            punishment_inv_horizon = None
+        elif punishment_mode == "full":
+            punishment_start = 0
+            punishment_inv_horizon = 1
+        elif punishment_mode == "full_half":
+            punishment_start = int(0.5 * total_timesteps)
+            punishment_inv_horizon = 1
+        elif punishment_mode == "slow":
+            punishment_start = 0
+            punishment_inv_horizon = total_timesteps
+        elif punishment_mode == "slow_half":
+            punishment_start = int(0.5 * total_timesteps)
+            punishment_inv_horizon = int(0.5 * total_timesteps)
+
         # Reward shaping params
         rew_shaping_params = {
             "PLACEMENT_IN_POT_REW": config.placement_in_pot_reward,
             "DISH_PICKUP_REWARD": config.dish_pickup_reward,
             "SOUP_PICKUP_REWARD": config.soup_pickup_reward,
+            "SOUP_COOK_REWARD": config.soup_cook_reward,
             "COLLISION_REW": config.collision_reward,
             "USELESS_ACTION_REW": config.useless_action_reward,
             "WRONG_DELIVERY_REW": config.wrong_delivery_reward,

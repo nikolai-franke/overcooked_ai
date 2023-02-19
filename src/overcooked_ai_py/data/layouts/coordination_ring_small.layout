@@ -9,8 +9,8 @@
         { "ingredients" : ["onion", "onion", "onion"]}
     ],
     "rew_shaping_params": None,
-    "onion_value" : 5,
+    "onion_value" : 10,
     "onion_time" : 10,
-    "tomato_value": 8,
+    "tomato_value": 15,
     "tomato_time": 12,
 }
