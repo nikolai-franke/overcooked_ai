@@ -46,7 +46,7 @@ config_defaults = {
     "total_timesteps": 7_000_000,
     "batch_size": 1920,
     "learning_rate": 6e-4,
-    "lr_linear_schedule": False,
+    "lr_linear_schedule": True,
     "horizon": 400,
     "num_cpu": 24,
     "features_dim": 64,
@@ -100,10 +100,10 @@ def main(config=config_defaults):
 
         layout_name = config.layout_name
         punishment_mode = config.punishment_mode
+
         if lr_linear_schedule:
-            learning_rate = (
-                lambda progress_remaining: progress_remaining * learning_rate
-            )
+            initial_lr = learning_rate
+            learning_rate = lambda progress_remaining: progress_remaining * initial_lr
 
         if punishment_mode == "no_punishment":
             punishment_start = None

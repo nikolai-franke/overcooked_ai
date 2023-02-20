@@ -8,9 +8,9 @@ metric:
   name: rollout/ep_sparse_r
 parameters:
   seed:
-    values: [0, 100, 200]
+    values: [0, 100, 200, 300, 400]
   punishment_mode:
-    values: [no_punishment, full, full_half, slow, slow_half]
+    values: [no_punishment, full, full_half, slow]
   layout_name:
     values: [cramped_room_small, cramped_room_medium, cramped_room_large]
 

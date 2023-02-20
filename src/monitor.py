@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Union
 
 import numpy as np
 from stable_baselines3.common.monitor import Monitor
@@ -47,19 +47,19 @@ class OvercookedMonitor(Monitor):
 
     # TODO: This is hacky and ugly, replace this whole monitor with VecMonitor to allow unwrapping and setting the value directly in the environment object
     @property
-    def shaped_reward_coef(self):
+    def shaped_reward_coef(self) -> float:
         return self._learning_rate_coef
 
     @shaped_reward_coef.setter
-    def shaped_reward_coef(self, value: float):
+    def shaped_reward_coef(self, value: float) -> None:
         assert 0.0 <= value and value <= 1.0
         self.env.unwrapped.shaped_reward_coef = value
 
     @property
-    def punishment_coef(self):
+    def punishment_coef(self) -> float:
         return self._punishment_coef
 
     @punishment_coef.setter
-    def punishment_coef(self, value: float):
+    def punishment_coef(self, value: float) -> None:
         assert 0.0 <= value and value <= 1.0
         self.env.unwrapped.punishment_coef = value
