@@ -10,7 +10,16 @@ parameters:
   seed:
     values: [0, 100, 200, 300, 400]
   punishment_mode:
-    values: [no_punishment, full, full_half, slow]
+    values: [full_half, slow, slow_half]
   layout_name:
-    values: [cramped_room_small, cramped_room_medium, cramped_room_large]
+    values: [cramped_room_medium, cramped_room_large]
+  learning_rate:
+    value: 2e-4
+  total_timesteps:
+    value: 10_000_000
+  shaped_rewards_horizon:
+    value: 5_000_000
+  useless_action_reward:
+    value: -0.5
+
 
