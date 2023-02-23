@@ -1,5 +1,5 @@
 program: ../src/run.py
-name: punishment_horizon_cramped_room
+name: cramped_room_2400
 method: grid
 project: overcooked
 entity: nikolai-franke
@@ -20,6 +20,8 @@ parameters:
   shaped_rewards_horizon:
     value: 5_000_000
   useless_action_reward:
-    value: -0.5
+    value: -0.4
+  n_steps:
+    value: 2400
 
 

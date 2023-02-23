@@ -36,7 +36,7 @@ def make_env(
         return env
 
     if seed is not None:
-        set_random_seed(seed)
+        set_random_seed(seed, using_cuda=True)
 
     return _init
 
