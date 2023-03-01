@@ -66,6 +66,7 @@ config_defaults = {
     "n_epochs": 10,
     "ent_coef": 0.0,
     "clip_range": 0.2,
+    "clip_range_schedule": True,
     "max_grad_norm": 0.5,
     "shaped_rewards_horizon": None,
     "punishment_start": None,
@@ -95,6 +96,7 @@ def main(config=config_defaults):
         n_steps = config.n_steps
         ent_coef = config.ent_coef
         clip_range = config.clip_range
+        clip_range_schedule = config.clip_range_schedule
         max_grad_norm = config.max_grad_norm
         shaped_rewards_horizon = config.shaped_rewards_horizon
         punishment_start = config.punishment_start
@@ -108,6 +110,12 @@ def main(config=config_defaults):
         if lr_linear_schedule:
             initial_lr = learning_rate
             learning_rate = lambda progress_remaining: progress_remaining * initial_lr
+
+        if clip_range_schedule:
+            initial_clip_range = clip_range
+            clip_range = (
+                lambda progress_remaining: progress_remaining * initial_clip_range
+            )
 
         if punishment_mode == "no_punishment":
             punishment_start = None
@@ -195,6 +203,7 @@ def main(config=config_defaults):
                     punishment_start, punishment_inv_horizon, punishment_exponent
                 )
             )
+
         callback_list.append(TensorboardCallback())
         callback_list.append(WandbCallback(verbose=2))
 
@@ -206,8 +215,9 @@ def main(config=config_defaults):
         model.save(save_dir)
 
         # create test environment and record video of trained agent
+        test_seed = seed + 1000 if seed is not None else None
         test_env = make_env(
-            0, env_id, layout_name, horizon, rew_shaping_params, seed=1000
+            0, env_id, layout_name, horizon, rew_shaping_params, seed=test_seed
         )()
         model = PPO.load(save_dir, test_env)
 
