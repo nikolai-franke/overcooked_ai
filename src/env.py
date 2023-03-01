@@ -130,6 +130,8 @@ class Overcooked(gym.Env):
             "combined_shaped_r": sum(mdp_infos["shaped_reward_by_agent"]),
             "combined_punishment": sum(mdp_infos["punishment_by_agent"]),
             "collision": mdp_infos["collision"],
+            "punishment_coef": self.punishment_coef,
+            "shaped_reward_coef": self.shaped_reward_coef,
         }
         return env_info
 
