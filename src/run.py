@@ -61,15 +61,17 @@ config_defaults = {
     "wrong_delivery_reward": -5,
     "layout_name": "cramped_room_small",
     "model_name": "ppo",
+    "discount_factor": 0.98,
     "n_steps": 400,
-    "n_epochs": 8,
+    "n_epochs": 10,
     "ent_coef": 0.0,
-    "clip_range": 0.05,
-    "max_grad_norm": 0.1,
+    "clip_range": 0.2,
+    "max_grad_norm": 0.5,
     "shaped_rewards_horizon": None,
     "punishment_start": None,
     "punishment_inv_horizon": None,
     "punishment_mode": None,
+    "punishment_exponent": 1,
 }
 
 
@@ -97,6 +99,8 @@ def main(config=config_defaults):
         shaped_rewards_horizon = config.shaped_rewards_horizon
         punishment_start = config.punishment_start
         punishment_inv_horizon = config.punishment_inv_horizon
+        punishment_exponent = config.punishment_exponent
+        discount_factor = config.discount_factor
 
         layout_name = config.layout_name
         punishment_mode = config.punishment_mode
@@ -118,7 +122,7 @@ def main(config=config_defaults):
             punishment_start = 0
             punishment_inv_horizon = total_timesteps
         elif punishment_mode == "slow_half":
-            punishment_start = int(0.5 * total_timesteps)
+            punishment_start = 0
             punishment_inv_horizon = int(0.5 * total_timesteps)
 
         # Reward shaping params
@@ -175,6 +179,7 @@ def main(config=config_defaults):
                 n_epochs=n_epochs,
                 batch_size=batch_size,
                 tensorboard_log=tensorboard_dir,
+                gamma=discount_factor,
             )
         else:
             raise NotImplementedError
@@ -186,7 +191,9 @@ def main(config=config_defaults):
         if punishment_start is not None:
             assert punishment_inv_horizon is not None
             callback_list.append(
-                PunishmentCallback(punishment_start, punishment_inv_horizon)
+                PunishmentCallback(
+                    punishment_start, punishment_inv_horizon, punishment_exponent
+                )
             )
         callback_list.append(TensorboardCallback())
         callback_list.append(WandbCallback(verbose=2))
@@ -199,7 +206,9 @@ def main(config=config_defaults):
         model.save(save_dir)
 
         # create test environment and record video of trained agent
-        test_env = make_env(0, env_id, layout_name, horizon, rew_shaping_params)()
+        test_env = make_env(
+            0, env_id, layout_name, horizon, rew_shaping_params, seed=1000
+        )()
         model = PPO.load(save_dir, test_env)
 
         obs = model.env.reset()
@@ -207,7 +216,7 @@ def main(config=config_defaults):
         done = False
         images = [img]
         while not done:
-            action, _ = model.predict(obs)
+            action, _ = model.predict(obs, deterministic=True)
             obs, _, done, _ = model.env.step(action)
             img = model.env.render("rgb_array")
             images.append(img)

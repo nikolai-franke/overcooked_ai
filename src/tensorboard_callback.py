@@ -20,3 +20,9 @@ class TensorboardCallback(BaseCallback):
                     "rollout/ep_collisions", e["episode"]["ep_collisions"]
                 )
         return True
+
+    def _on_rollout_end(self) -> None:
+        # to get the punishment and reward coefficients, we only need the env_info from one environment
+        env_info = self.locals["infos"][0]
+        self.logger.record("rollout/punishment_coef", env_info["punishment_coef"])
+        self.logger.record("rollout/shaped_reward_coef", env_info["shaped_reward_coef"])

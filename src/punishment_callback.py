@@ -6,6 +6,7 @@ class PunishmentCallback(BaseCallback):
         self,
         start_timestep: int = 0,
         increase_duration: int = 7_000_000,
+        exponent: int = 1,
         verbose: int = 0,
     ):
         """
@@ -19,6 +20,7 @@ class PunishmentCallback(BaseCallback):
         super().__init__(verbose)
         self.start_timestep = start_timestep
         self.increase_duration = increase_duration
+        self.exponent = exponent
 
     def _on_step(self) -> bool:
         return True
@@ -28,5 +30,8 @@ class PunishmentCallback(BaseCallback):
             self.training_env.set_attr("punishment_coef", 0.0)
         else:
             relative_timestep = self.num_timesteps - self.start_timestep
-            value = min(relative_timestep / self.increase_duration, 1.0)
+            value = min(
+                (relative_timestep / self.increase_duration) ** self.exponent,
+                1.0,
+            )
             self.training_env.set_attr("punishment_coef", value)
