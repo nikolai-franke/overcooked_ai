@@ -12,15 +12,14 @@ class OvercookedEvalCallback(EvalCallback):
     ) -> None:
         info = locals_["info"]
 
-        if "episode" in info[0].keys():
-            for e in info:
-                self.logger.record_mean("eval/ep_useless_a", e["episode"]["ep_useless_a"])  # type: ignore
-                self.logger.record_mean("eval/ep_shaped_r", e["episode"]["ep_shaped_r"])  # type: ignore
-                self.logger.record_mean("eval/ep_sparse_r", e["episode"]["ep_sparse_r"])  # type: ignore
-                self.logger.record_mean(
-                    "eval/ep_punishment", e["episode"]["ep_punishment"]
-                )
-                self.logger.record_mean("eval/ep_wrong_d", e["episode"]["ep_wrong_d"])  # type: ignore
-                self.logger.record_mean(
-                    "eval/ep_collisions", e["episode"]["ep_collisions"]
-                )
+        if "episode" in info.keys():
+            self.logger.record_mean("eval/ep_useless_a", info["episode"]["ep_useless_a"])  # type: ignore
+            self.logger.record_mean("eval/ep_shaped_r", info["episode"]["ep_shaped_r"])  # type: ignore
+            self.logger.record_mean("eval/ep_sparse_r", info["episode"]["ep_sparse_r"])  # type: ignore
+            self.logger.record_mean(
+                "eval/ep_punishment", info["episode"]["ep_punishment"]
+            )
+            self.logger.record_mean("eval/ep_wrong_d", info["episode"]["ep_wrong_d"])  # type: ignore
+            self.logger.record_mean(
+                "eval/ep_collisions", info["episode"]["ep_collisions"]
+            )

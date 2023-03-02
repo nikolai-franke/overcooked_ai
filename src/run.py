@@ -11,6 +11,7 @@ from wandb.integration.sb3 import WandbCallback
 
 import wandb
 from cnn import CNN
+from eval_callback import OvercookedEvalCallback
 from monitor import OvercookedMonitor
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
 from punishment_callback import PunishmentCallback
@@ -222,7 +223,7 @@ def main(config=config_defaults):
                 )
             )
         callback_list.append(
-            EvalCallback(
+            OvercookedEvalCallback(
                 eval_env,
                 eval_freq=max(eval_freq // num_cpu, 1),
                 n_eval_episodes=num_cpu,
