@@ -4,6 +4,7 @@ import gym
 import numpy as np
 import torch
 from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from wandb.integration.sb3 import WandbCallback
@@ -44,6 +45,7 @@ def make_env(
 config_defaults = {
     "seed": None,
     "total_timesteps": 7_000_000,
+    "eval_freq": 500_000,
     "batch_size": 1920,
     "learning_rate": 6e-4,
     "lr_linear_schedule": True,
@@ -103,6 +105,7 @@ def main(config=config_defaults):
         punishment_inv_horizon = config.punishment_inv_horizon
         punishment_exponent = config.punishment_exponent
         discount_factor = config.discount_factor
+        eval_freq = config.eval_freq
 
         layout_name = config.layout_name
         punishment_mode = config.punishment_mode
@@ -162,6 +165,21 @@ def main(config=config_defaults):
             ]
         )
 
+        eval_seed = seed + 1000 if seed is not None else None
+        eval_env = SubprocVecEnv(
+            [
+                make_env(
+                    i,
+                    env_id,
+                    layout_name,
+                    horizon,
+                    rew_shaping_params,
+                    seed=eval_seed,
+                )
+                for i in range(num_cpu)
+            ]
+        )
+
         net_structure = [net_n_neurons] * net_n_layers
         net_arch = dict(pi=net_structure, vf=net_structure)
 
@@ -203,7 +221,14 @@ def main(config=config_defaults):
                     punishment_start, punishment_inv_horizon, punishment_exponent
                 )
             )
-
+        callback_list.append(
+            EvalCallback(
+                eval_env,
+                eval_freq=max(eval_freq // num_cpu, 1),
+                n_eval_episodes=num_cpu,
+                # callback_after_eval=TensorboardCallback(prefix="eval"),
+            )
+        )
         callback_list.append(TensorboardCallback())
         callback_list.append(WandbCallback(verbose=2))
 

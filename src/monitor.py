@@ -7,6 +7,10 @@ from stable_baselines3.common.type_aliases import GymObs, GymStepReturn
 
 class OvercookedMonitor(Monitor):
     def __init__(self, *args, **kwargs):
+        """
+        Monitors shaped rewards, sparse rewards (without punishments), punishments, useless actions, wrong deliveries, and collisions.
+
+        """
         super().__init__(*args, **kwargs)
         self.shaped_rewards = []
         self.sparse_rewards = []
@@ -45,7 +49,7 @@ class OvercookedMonitor(Monitor):
             )
         return observation, reward, done, info
 
-    # TODO: This is hacky and ugly, replace this whole monitor with VecMonitor to allow unwrapping and setting the value directly in the environment object
+    # TODO: This is ugly. Maybe replace this whole monitor class with a VecMonitor to allow unwrapping and setting the value directly in the environment object.
     @property
     def shaped_reward_coef(self) -> float:
         return self._learning_rate_coef
